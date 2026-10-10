@@ -1,0 +1,11 @@
+# Do NOT put the actual rules here.
+#
+# The authoritative keep rules live in:
+#   src/main/keepRules/rules.keep
+# AGP merges that directory into the AAR's proguard.txt, so consumers get the
+# rules automatically just by depending on the AAR.
+#
+# This file is intentionally left as a pointer only. Having the rules in two
+# places previously caused one copy to drift (the src/main/keepRules one had been
+# left as the untouched AGP template), and the drift was invisible until the AAR
+# was unpacked and inspected. One location, one source of truth.

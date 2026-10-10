@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  示例界面：工具栏固定在顶部，编辑器占满剩余空间并自行滚动。
+
+  为什么不做「整页滚动 + WebView 自动高度」：
+  那样需要把 WebView 放进 ScrollView，而 WebView 会与父容器的滚动手势互相争夺，
+  是 Android 上出了名的坑。工具栏固定 + WebView 内部滚动既符合编辑器类应用的通行做法，
+  也避开了这个坑。
+  如果确实需要「整页滚动」效果（例如编辑器只是长表单中的一项），
+  可以监听 EditorEventListener.onHeightChanged 动态改 WebView 的高度，
+  并配合 RichEditorView 的 autoHeight（默认开启）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <com.itc.richeditor.EditorToolbar
+        android:id="@+id/editor_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?attr/colorOutlineVariant" />
+
+    <com.itc.richeditorv2.RichEditorView
+        android:id="@+id/editor"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

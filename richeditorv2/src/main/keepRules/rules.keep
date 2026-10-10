@@ -1,0 +1,23 @@
+# R8 / ProGuard keep rules for richeditorv2.
+#
+# AGP combines every file under src/main/keepRules into the AAR's proguard.txt,
+# which consumers apply automatically. Everything here is intentionally ASCII-only
+# so the file can never be mangled by an editor/terminal encoding mismatch - a
+# corrupted keep-rules file would silently disable the keep rules below.
+#
+# WHY THESE RULES ARE REQUIRED
+# WebView's addJavascriptInterface resolves the @JavascriptInterface methods by
+# NAME via reflection. If R8 renames or removes them, the JS side keeps calling
+# window.AndroidBridge.onReady()/onUpdate()/... and nothing happens: the editor
+# looks broken with no error, no crash and no log. That silent failure mode is
+# exactly why these rules must ship inside the AAR.
+-keepattributes JavascriptInterface
+-keepattributes *Annotation*
+
+# Public bridge methods must keep their exact names.
+-keepclassmembers class com.itc.richeditorv2.EditorBridge {
+    public *;
+}
+
+# Keep the class itself so it cannot be shrunk away.
+-keep class com.itc.richeditorv2.EditorBridge { *; }

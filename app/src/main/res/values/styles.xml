@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      B / I / U / S 这类「状态型」按钮：继承 TextButton 拿到透明底与紧凑内边距。
+
+      注意：本样式**不提供 layout_width / layout_height**，Material 的按钮样式也不提供。
+      使用它的地方必须自己写这两项，否则运行时 inflate 会抛：
+        "You must supply a layout_width attribute."
+      这个错误编译期不报（AAPT2 不做该检查），只在 inflate 时才炸，很容易漏。
+    -->
+    <style name="ToolbarToggleButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:minWidth">44dp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingLeft">6dp</item>
+        <item name="android:paddingRight">6dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+        <!-- 不抢焦点：否则点击会收起软键盘、丢失 WebView 内选区 -->
+        <item name="android:focusable">false</item>
+        <item name="android:focusableInTouchMode">false</item>
+        <!--
+          注意：这里不写 checkable。
+          Material 组件库并未定义名为 checkable 的 XML 属性（只有 startIconCheckable /
+          endIconCheckable），声明它会直接导致资源链接失败：
+            style attribute 'attr/checkable' not found
+          MaterialButton 的 checkable 只能通过 setCheckable(true) 设置，
+          见 EditorToolbar.bindToggleButton()。
+        -->
+        <item name="backgroundTint">@color/toolbar_toggle_bg</item>
+        <item name="android:textColor">@color/toolbar_toggle_text</item>
+        <item name="cornerRadius">8dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="elevation">0dp</item>
+        <item name="iconPadding">0dp</item>
+    </style>
+
+    <!-- 更多 / 全屏 图标按钮 -->
+    <style name="ToolbarIconButton" parent="Widget.AppCompat.ImageButton">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:focusable">false</item>
+        <item name="android:focusableInTouchMode">false</item>
+    </style>
+
+    <!-- 按钮组之间的细分隔线 -->
+    <style name="ToolbarDivider">
+        <item name="android:layout_width">1dp</item>
+        <item name="android:layout_height">20dp</item>
+        <item name="android:layout_marginLeft">4dp</item>
+        <item name="android:layout_marginRight">4dp</item>
+        <item name="android:background">?attr/colorOutlineVariant</item>
+    </style>
+
+</resources>

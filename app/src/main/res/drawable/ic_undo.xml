@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12.5,8c-2.65,0 -5.05,0.99 -6.9,2.6L2,7v9l3.6,-3.6C7.45,13.99 9.85,15 12.5,15c3.65,0 6.74,2.2 8.06,5.31l2.32,-0.99C21.14,15.17 17.16,12.5 12.5,12.5z" />
+    <!-- 简化版箭头：用规则形状保证在 24dp 下清晰 -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M7,7h6v2.4H9.4v3.2H7z" />
+</vector>

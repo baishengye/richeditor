@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">richeditor</string>
+
+    <!-- 工具栏按钮字面量：B / I / U / S -->
+    <string name="toolbar_bold" translatable="false">B</string>
+    <string name="toolbar_italic" translatable="false">I</string>
+    <string name="toolbar_underline" translatable="false"><u>U</u></string>
+    <string name="toolbar_strike" translatable="false"><strike>S</strike></string>
+
+    <string name="toolbar_more">更多选项</string>
+    <string name="toolbar_expand">全屏编辑</string>
+
+    <string name="action_bold">加粗</string>
+    <string name="action_italic">斜体</string>
+    <string name="action_underline">下划线</string>
+    <string name="action_strike">删除线</string>
+    <string name="action_align_left">左对齐</string>
+    <string name="action_align_center">居中对齐</string>
+    <string name="action_align_right">右对齐</string>
+    <string name="action_undo">撤销</string>
+    <string name="action_redo">重做</string>
+
+    <string name="menu_paragraph">正文</string>
+    <string name="menu_heading1">标题 1</string>
+    <string name="menu_heading2">标题 2</string>
+    <string name="menu_heading3">标题 3</string>
+    <string name="menu_bullet_list">无序列表</string>
+    <string name="menu_ordered_list">有序列表</string>
+    <string name="menu_blockquote">引用</string>
+    <string name="menu_code_block">代码块</string>
+    <string name="menu_code">行内代码</string>
+    <string name="menu_link">插入链接…</string>
+    <string name="menu_unlink">移除链接</string>
+    <string name="menu_divider">分割线</string>
+    <string name="menu_undo">撤销</string>
+    <string name="menu_redo">重做</string>
+    <string name="menu_select_all">全选</string>
+    <string name="menu_clear">清空内容</string>
+
+    <string name="link_dialog_title">链接</string>
+    <string name="link_dialog_hint">https://example.com</string>
+    <string name="link_dialog_remove">移除</string>
+    <string name="dialog_ok">确定</string>
+    <string name="dialog_cancel">取消</string>
+
+    <string name="fullscreen_title">全屏编辑</string>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 更多菜单项的 id，与 EditorToolbar 里的命令映射一一对应 -->
+    <item name="menu_paragraph" type="id" />
+    <item name="menu_heading1" type="id" />
+    <item name="menu_heading2" type="id" />
+    <item name="menu_heading3" type="id" />
+    <item name="menu_bullet_list" type="id" />
+    <item name="menu_ordered_list" type="id" />
+    <item name="menu_blockquote" type="id" />
+    <item name="menu_code_block" type="id" />
+    <item name="menu_code" type="id" />
+    <item name="menu_link" type="id" />
+    <item name="menu_unlink" type="id" />
+    <item name="menu_divider" type="id" />
+    <item name="menu_undo" type="id" />
+    <item name="menu_redo" type="id" />
+    <item name="menu_select_all" type="id" />
+    <item name="menu_clear" type="id" />
+</resources>

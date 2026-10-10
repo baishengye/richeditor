@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 选中态：主色容器；按下态：表面变体；默认透明 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true" android:color="?attr/colorPrimaryContainer" />
+    <item android:state_pressed="true" android:color="?attr/colorSurfaceVariant" />
+    <item android:color="@android:color/transparent" />
+</selector>

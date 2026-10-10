@@ -1,0 +1,5 @@
+node_modules/
+dist/
+
+# 构建产物会输出到 ../src/main/assets/editor，由 Gradle/Android Studio 侧管理，
+# 这里不重复忽略，方便直接在 IDE 里查看产物。

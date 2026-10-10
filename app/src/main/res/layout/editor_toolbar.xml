@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  示例工具栏的内容。
+
+  结构说明（<merge> 作根，子控件直接成为 EditorToolbar 的孩子）：
+
+    [ 横向滚动的按钮区                        ] [⋮] [⤢]
+    B  I  U  S │ 左 中 右 │ 撤销 重做
+
+  为什么按钮区要包一层 HorizontalScrollView：
+  手机竖屏可用宽度约 380dp，而 9 个按钮加上右侧两个图标按钮会超过 420dp，
+  硬塞会挤变形或把右侧按钮挤出屏幕。做成横向滚动后，
+  窄屏可滑、宽屏/横屏/平板自然全部展开，不需要为不同尺寸各写一套布局。
+
+  「更多」和「全屏」刻意放在滚动区**外面**，保证永远可见——
+  这两个是入口型按钮，滑走了用户就找不到了。
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.LinearLayout">
+
+    <HorizontalScrollView
+        android:id="@+id/toolbar_scroller"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- ===== 行内格式：各自独立，可同时选中 ===== -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_bold"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_bold"
+                android:text="@string/toolbar_bold"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_italic"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_italic"
+                android:text="@string/toolbar_italic"
+                android:textStyle="italic" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_underline"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_underline"
+                android:text="@string/toolbar_underline" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_strike"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_strike"
+                android:text="@string/toolbar_strike" />
+
+            <View style="@style/ToolbarDivider" />
+
+            <!-- ===== 对齐：单选组，同一时刻只有一个高亮 ===== -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_align_left"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_align_left"
+                app:icon="@drawable/ic_align_left"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconTint="@color/toolbar_toggle_text" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_align_center"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_align_center"
+                app:icon="@drawable/ic_align_center"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconTint="@color/toolbar_toggle_text" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_align_right"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_align_right"
+                app:icon="@drawable/ic_align_right"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconTint="@color/toolbar_toggle_text" />
+
+            <View style="@style/ToolbarDivider" />
+
+            <!-- ===== 历史：动作型，无选中态，但会随历史栈启用/禁用 ===== -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_undo"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_undo"
+                app:icon="@drawable/ic_undo"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconTint="@color/toolbar_toggle_text" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_redo"
+                style="@style/ToolbarToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_redo"
+                app:icon="@drawable/ic_redo"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconTint="@color/toolbar_toggle_text" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <ImageButton
+        android:id="@+id/btn_more"
+        style="@style/ToolbarIconButton"
+        android:contentDescription="@string/toolbar_more"
+        android:src="@drawable/ic_more_vert"
+        app:tint="?attr/colorOnSurfaceVariant" />
+
+    <ImageButton
+        android:id="@+id/btn_expand"
+        style="@style/ToolbarIconButton"
+        android:contentDescription="@string/toolbar_expand"
+        android:src="@drawable/ic_expand"
+        app:tint="?attr/colorOnSurfaceVariant" />
+
+</merge>
