@@ -1,5 +1,7 @@
 import type { Editor } from '@tiptap/core'
+import { normalizeImageAlign } from './image'
 import { isSimpleCommand } from './protocol'
+import { resolveAlign } from './snapshot'
 
 export interface CommandResult {
   ok: boolean
@@ -85,6 +87,20 @@ export function runCommand(editor: Editor, name: string, valueJson?: string | nu
 
   const alignValue = ALIGN_ALIAS[name]
   if (alignValue !== undefined) {
+    // 图片要单独处理：它是块级叶子节点，不在段落里，
+    // 所以 `setTextAlign`（作用于 heading/paragraph）对它完全无效。
+    // 光标落在图片上时改的是图片自身的 textAlign 属性（渲染成 margin:auto）。
+    if (editor.isActive('image')) {
+      return {
+        ok: editor
+          .chain()
+          .focus()
+          // left 归一化为 null：图片不写任何样式就是靠左，
+          // 避免“未设置”与“显式左对齐”在文档里变成两种表示
+          .updateAttributes('image', { textAlign: alignValue === 'left' ? null : alignValue })
+          .run(),
+      }
+    }
     // 用 set 而不是 toggle：对齐是单选组，重复点同一项不应取消对齐，
     // 否则会出现「点了居中又变回左对齐」的反直觉行为。
     return { ok: editor.chain().focus().setTextAlign(alignValue).run() }
@@ -103,8 +119,18 @@ export function runCommand(editor: Editor, name: string, valueJson?: string | nu
     if (!src) {
       return { ok: false, reason: 'insertImage 需要 {"src":"..."} 或裸地址字符串' }
     }
-    // 插入后光标会落在图片之后，方便继续输入
-    return { ok: editor.chain().focus().setImage({ src }).run() }
+    // 继承当前对齐方式：用户在「居中」状态下插图，图片也应该居中。
+    // 否则“选了居中但图片还是靠左”，用户会以为对齐按钮没生效。
+    // 图片是独立块级节点，插入时不会自动跟随所在段落，必须显式带上。
+    const textAlign = normalizeImageAlign(resolveAlign(editor))
+    //
+    // 不用 `setImage`：它的选项类型 `SetImageOptions` 只声明了 src/alt/title，
+    // 不含我们扩展出来的 textAlign（TS 类型不会随运行时 schema 自动更新）。
+    // `setImage` 内部本来就是 `insertContent({ type: 'image', attrs: options })`，
+    // 所以这里直接用 insertContent，行为一致且不受类型限制。
+    return {
+      ok: editor.chain().focus().insertContent({ type: 'image', attrs: { src, textAlign } }).run(),
+    }
   }
 
   if (!isSimpleCommand(name)) {

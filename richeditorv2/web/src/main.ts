@@ -1,7 +1,7 @@
 import { Editor, Extension, type JSONContent } from '@tiptap/core'
 import { StarterKit } from '@tiptap/starter-kit'
 import { TextAlign } from '@tiptap/extension-text-align'
-import { Image } from '@tiptap/extension-image'
+import { AlignedImage } from './image'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, type Transaction } from '@tiptap/pm/state'
 import type { DirectEditorProps } from '@tiptap/pm/view'
@@ -302,10 +302,16 @@ function createEditor(options: InitOptions): boolean {
         link: { openOnClick: false },
       }),
       // 对齐不属于 StarterKit，必须单独引入；types 限定只允许块级节点带该属性
+      //
+      // 注意：**不要**把 'image' 加进来。图片的对齐由 AlignedImage 自己处理
+      //（需要 display:block + margin:auto，而不是 text-align）。
+      // 加进来不但无效，还会与 AlignedImage 的 textAlign 属性定义重叠。
+      // 详见 src/image.ts 的注释。
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       // 图片也不在 StarterKit 里。
       // allowBase64: 允许 data URL，宿主从相册选图后可不解码直接塞进来（代价是文档变大）。
-      Image.configure({ inline: false, allowBase64: true }),
+      // 相比原生 Image 多了一个 textAlign 属性（渲染成 margin:auto），使图片能居中/居右。
+      AlignedImage.configure({ inline: false, allowBase64: true }),
       // emoji 输入过滤：默认禁止输入表情，详见 EmojiFilter 的注释
       EmojiFilter,
     ],
