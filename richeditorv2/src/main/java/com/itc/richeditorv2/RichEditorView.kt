@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.Log
+import android.util.TypedValue
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -106,6 +107,80 @@ class RichEditorView @JvmOverloads constructor(
     var lastCount: CharacterCount = CharacterCount.EMPTY
         private set
 
+    /**
+     * 编辑器最小高度，单位是**设备像素**；`<= 0` 表示不限制（默认）。
+     *
+     * 对应 XML 属性 `android:minHeight`，写 dp 会自动换算：
+     *
+     * ```xml
+     * <com.itc.richeditorv2.RichEditorView
+     *     android:layout_width="match_parent"
+     *     android:layout_height="wrap_content"
+     *     android:minHeight="120dp"
+     *     android:maxHeight="400dp" />
+     * ```
+     *
+     * ## 与 `View.setMinimumHeight()` 的区别
+     * `View.setMinimumHeight()` 只影响 `getSuggestedMinimumHeight()`，而 WebView 的测量
+     * 并不因此把高度抬起来 —— 对它基本不起作用。本属性在 [onMeasure] 里**强制**生效，
+     * 所以无论 `layout_height` 是 `wrap_content` 还是宿主自己给的固定高度，下限都能兜住。
+     *
+     * 顺带解决一个体验问题：WebView 在页面加载完成前测出的高度可能是 0，
+     * 设了 [minHeight] 就不会出现"内容加载前编辑器塌成一条线"。
+     *
+     * 单位是像素而不是 dp，是为了与 [EditorEventListener.onHeightChanged] 的 `heightPx` 一致
+     * （那也是设备像素）；想用 dp 的话自行乘 `resources.displayMetrics.density`。
+     */
+    var minHeight: Int = 0
+        set(value) {
+            val normalized = value.coerceAtLeast(0)
+            if (field == normalized) {
+                return
+            }
+            field = normalized
+            warnIfHeightBoundsInverted()
+            requestLayout()
+        }
+
+    /**
+     * 编辑器最大高度，单位是**设备像素**；`<= 0` 表示不限制（默认）。
+     *
+     * 对应 XML 属性 `android:maxHeight`。超过这个高度后由编辑器**内部滚动**。
+     *
+     * 语义与 `TextView.maxHeight` 一致：即使 `layout_height` 给了固定值
+     * （`match_parent` / `0dp`+weight / 具体数值），也会被压到这个上限。
+     * 所以配它的时候要确认父容器能接受"控件比分配到的空间矮"，
+     * 典型用法是配 `layout_height="wrap_content"` 或配合
+     * [EditorEventListener.onHeightChanged] 动态设高度。
+     */
+    var maxHeight: Int = 0
+        set(value) {
+            val normalized = value.coerceAtLeast(0)
+            if (field == normalized) {
+                return
+            }
+            field = normalized
+            warnIfHeightBoundsInverted()
+            requestLayout()
+        }
+
+    /**
+     * 按当前 [minHeight] / [maxHeight] 钳制一个高度值（设备像素）。
+     *
+     * 给"监听 [EditorEventListener.onHeightChanged] 自行设 `layoutParams.height`"这种用法
+     * 准备的：库上报的是内容真实高度，可能超出上限，也可能不足下限；
+     * **先钳制再赋值**，避免出现控件比父容器分配空间矮而留下空隙。
+     *
+     * ```kotlin
+     * override fun onHeightChanged(heightPx: Int) {
+     *     editor.layoutParams = editor.layoutParams.apply { height = editor.clampHeight(heightPx) }
+     * }
+     * ```
+     *
+     * 用 `layout_height="wrap_content"` 的话不需要调它 —— [onMeasure] 里已经钳制过了。
+     */
+    fun clampHeight(heightPx: Int): Int = EditorHeightBounds.clamp(heightPx, minHeight, maxHeight)
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private val density: Float = resources.displayMetrics.density
 
@@ -170,7 +245,134 @@ class RichEditorView @JvmOverloads constructor(
     private val extraListeners = java.util.concurrent.CopyOnWriteArrayList<EditorEventListener>()
 
     init {
+        // 先读 XML 里的高度限制，再配置 WebView（配置失败也不影响高度限制生效）
+        readHeightBounds(attrs)
         configureWebView()
+    }
+
+    /**
+     * 把测量出来的高度钳制到 [[minHeight], [maxHeight]] 之间。
+     *
+     * 放在 [onMeasure] 而不是改 layoutParams，是为了用**一处实现**覆盖两种典型用法：
+     *  - `layout_height="wrap_content"`：由编辑器与父容器自己算高度
+     *  - 宿主监听 [EditorEventListener.onHeightChanged] 自行设 `layoutParams.height`
+     *    （此时测量模式是 EXACTLY，同样会被钳制）
+     * 否则用户会困惑于"为什么走了另一条路就不生效"。
+     *
+     * 注意在 EXACTLY 下钳制意味着控件可能比父容器分配的空间矮，
+     * 这是刻意与 `TextView.maxHeight` 保持一致的语义，已在 [maxHeight] 里说明。
+     */
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        val measured = measuredHeight
+        val clamped = EditorHeightBounds.clamp(measured, minHeight, maxHeight)
+        if (clamped != measured) {
+            setMeasuredDimension(measuredWidth, clamped)
+        }
+    }
+
+    /**
+     * 读取 `android:minHeight` / `android:maxHeight`。
+     *
+     * 直接读 framework 属性，而不是自定义一套 `app:` 属性：
+     *  1. 这两个就是 Android 标准属性名，用它们对使用方最自然（也不用加 `xmlns:app`）；
+     *  2. 本库刻意没有 `res/` 目录（零资源、零依赖），用自定义属性就得引入 `attrs.xml`
+     *     和 R 类。注意传给 `obtainStyledAttributes` 的数组顺序决定了取值下标。
+     */
+    private fun readHeightBounds(attrs: AttributeSet?) {
+        if (attrs == null) {
+            return
+        }
+        // 遍历 AttributeSet 按资源 ID 取值。
+        //
+        // ## 为什么不用更“标准”的 obtainStyledAttributes
+        // 通常自定义 View 读 XML 属性都用
+        // `context.obtainStyledAttributes(attrs, ids, defStyleAttr, 0)`，
+        // 但实测（SM-A5560 / Android 14，AGP 7.3.1 + 本库作为 AAR 引入）**读不到**：
+        //
+        //     AttributeSet 里确实有 maxHeight（attributeCount=4，
+        //     getAttributeNameResource=0x01010120，getAttributeValue="250.0dip"），
+        //     查询用的也是 android.R.attr.maxHeight（同样是 0x01010120），
+        //     但返回的 TypedArray 是 indexCount=0、hasValue(0/1) 全为 false。
+        //
+        // 结果是 maxHeight 静默失效（控件高度不受限、也不报错），很难排查。
+        // 改为直接读 AttributeSet 后，真机实测两个方向都准确：
+        //   maxHeight=250dp → 内容 1189px 被压到 703px（= 250dp × 450/160）
+        //   minHeight=500dp → 内容 1189px 被抬到 1406px
+        //
+        // 代价：只认 XML 里**直接写**的属性。通过 style / theme 间接提供的
+        // minHeight / maxHeight 读不到（此时请用属性 setter 在代码里赋值）。
+        for (i in 0 until attrs.attributeCount) {
+            val resId = attrs.getAttributeNameResource(i)
+            if (resId != android.R.attr.minHeight && resId != android.R.attr.maxHeight) {
+                continue
+            }
+            // 单个属性读失败不能影响另一个，也不能让整个控件膨胀失败
+            val px = runCatching { readDimensionOrResource(attrs, i) }.getOrDefault(0)
+            if (resId == android.R.attr.minHeight) {
+                minHeight = px
+            } else {
+                maxHeight = px
+            }
+        }
+    }
+
+    /**
+     * 从 `AttributeSet` 的第 [index] 个属性读出一个像素值。
+     *
+     * 覆盖两种写法：
+     *  - `android:maxHeight="@dimen/xxx"` —— 资源引用，交给 [Resources.getDimensionPixelSize]
+     *  - `android:maxHeight="250dp"` —— 编译后是字面量，形如 `"250.0dip"`，需自行换算单位
+     */
+    private fun readDimensionOrResource(attrs: AttributeSet, index: Int): Int {
+        val refId = attrs.getAttributeResourceValue(index, 0)
+        if (refId != 0) {
+            return runCatching { resources.getDimensionPixelSize(refId) }.getOrDefault(0)
+        }
+        val raw = attrs.getAttributeValue(index) ?: return 0
+        return parseDimensionLiteral(raw)
+    }
+
+    /**
+     * 解析 `"250.0dip"` 这类编译后的字面量尺寸。
+     *
+     * 单位换算与 framework 的 `TypedValue.complexToDimensionPixelSize` 保持一致，
+     * 免得同一个值走 `obtainStyledAttributes` 和走这里得到不同结果。
+     */
+    private fun parseDimensionLiteral(raw: String): Int {
+        val text = raw.trim()
+        if (text.isEmpty()) {
+            return 0
+        }
+        // 裸数字按像素处理（与 TypedArray.getDimensionPixelSize 对普通整数的行为一致）
+        val numberEnd = text.indexOfFirst { it != '-' && it != '+' && it != '.' && !it.isDigit() }
+        val numberPart = if (numberEnd < 0) text else text.substring(0, numberEnd)
+        val unit = (if (numberEnd < 0) "" else text.substring(numberEnd)).trim().lowercase()
+        val value = numberPart.toFloatOrNull() ?: return 0
+
+        val metrics = resources.displayMetrics
+        val scale = when (unit) {
+            "", "px" -> 1f
+            "dp", "dip" -> metrics.density
+            "sp" -> metrics.scaledDensity
+            "pt" -> metrics.density * 72f / 160f
+            "in" -> metrics.density * 160f
+            "mm" -> metrics.density * 160f / 25.4f
+            else -> return 0
+        }
+        return (value * scale + 0.5f).toInt()
+    }
+
+    /**
+     * 下限大于上限时告警。
+     *
+     * 不抛异常：高度配置写反只是显示问题，远没有让整个界面崩掉严重。
+     * 实际生效的是上限（见 [EditorHeightBounds.clamp]）。
+     */
+    private fun warnIfHeightBoundsInverted() {
+        if (minHeight > 0 && maxHeight > 0 && minHeight > maxHeight) {
+            Log.w(TAG, "minHeight($minHeight) 大于 maxHeight($maxHeight)，实际以 maxHeight 为准")
+        }
     }
 
     /** 添加一个额外监听器，重复添加会被忽略 */
