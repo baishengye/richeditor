@@ -1,5 +1,13 @@
 [versions]
-agp = "9.4.1"
+# 与目标项目对齐的构建工具链版本。三者必须成套降级：
+#  - AGP 决定能产出什么样元数据的 AAR（minAndroidGradlePluginVersion）
+#  - Kotlin 决定 class 里的 @kotlin.Metadata 版本，**不能高于消费方编译器**
+#    目标项目是 Kotlin 1.7.20，而 Kotlin 2.x 产出的元数据主版本是 2.x，1.7.20 读不了
+#    （报 "was compiled with an incompatible version of Kotlin"）。
+#    注意：Kotlin 2.x 编译器最低只支持 languageVersion 1.9，所以**无法**用 2.x 编译器
+#    产出 1.7.20 能读的产物，只能真正降 Kotlin 版本。
+agp = "7.3.1"
+kotlin = "1.7.20"
 coreKtx = "1.10.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -8,8 +16,10 @@ appcompat = "1.6.1"
 material = "1.10.0"
 activityKtx = "1.8.0"
 constraintlayout = "2.1.4"
-webkit = "1.17.1"
 json = "20250517"
+# 注：库模块（richeditorv2）现在**不依赖任何三方库** —— 原本的 androidx.webkit 已由
+# 自实现的 AssetResourceLoader 取代，所以这里不再有 webkit 条目。
+# 下面这些版本都只被 app（Demo）模块使用。
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -20,11 +30,11 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activityKtx" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 # 仅用于单元测试：Android 的 org.json 在 JVM 上是空壳，需要真实实现才能测 JSON 解析
 json = { group = "org.json", name = "json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 

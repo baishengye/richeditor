@@ -14,7 +14,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
 import org.json.JSONTokener
 
@@ -110,13 +109,9 @@ class RichEditorView @JvmOverloads constructor(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val density: Float = resources.displayMetrics.density
 
-    private val assetLoader: WebViewAssetLoader = WebViewAssetLoader.Builder()
-        .setDomain(RichEditorContract.ASSET_DOMAIN)
-        .addPathHandler(
-            RichEditorContract.ASSET_PREFIX,
-            WebViewAssetLoader.AssetsPathHandler(context.applicationContext),
-        )
-        .build()
+    // 自己实现的 assets 映射，代替 androidx.webkit 的 WebViewAssetLoader，
+    // 让整个 AAR 不依赖任何第三方库。原因见 AssetResourceLoader 的类注释。
+    private val assetLoader = AssetResourceLoader(context.applicationContext)
 
     private val bridge = EditorBridge(mainHandler, object : EditorEventListener {
         override fun onReady() {
@@ -625,7 +620,7 @@ class RichEditorView @JvmOverloads constructor(
             // 先给宿主机会（例如把自定义前缀映射到相册图片），未处理再走 assets
             onInterceptRequest?.invoke(request)?.let { return it }
             // 把 https://appassets.androidplatform.net/assets/... 映射到 assets/
-            return assetLoader.shouldInterceptRequest(request.url)
+            return assetLoader.open(request.url)
         }
 
         override fun shouldOverrideUrlLoading(

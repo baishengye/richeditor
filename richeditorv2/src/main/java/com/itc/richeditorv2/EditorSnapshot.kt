@@ -12,7 +12,9 @@ enum class TextAlign(val jsValue: String) {
     companion object {
         /** 未知值一律归一化为 [Left]：未设置对齐的块本来就是左对齐 */
         fun fromJs(value: String?): TextAlign =
-            entries.firstOrNull { it.jsValue == value } ?: Left
+            // 用 values() 而不是 entries：entries 是 Kotlin 1.9 才有的 API，
+            // 用它会编译出 kotlin/enums/EnumEntries 的引用，Kotlin 1.7.20 的 stdlib 没有这个类。
+            values().firstOrNull { it.jsValue == value } ?: Left
     }
 }
 

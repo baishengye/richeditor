@@ -121,7 +121,7 @@ class EditorToolbarStateTest {
     fun `只读模式下所有命令不可用`() {
         val readOnly = EditorSnapshot.EMPTY.copy(editable = false, canUndo = true, canRedo = true)
 
-        EditorCommand.entries.forEach { command ->
+        EditorCommand.values().forEach { command ->
             assertFalse("$command 在只读模式下应不可用", EditorToolbarState.isEnabled(readOnly, command))
         }
     }

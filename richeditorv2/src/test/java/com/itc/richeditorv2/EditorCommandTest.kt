@@ -17,7 +17,7 @@ class EditorCommandTest {
 
     @Test
     fun `jsName 唯一`() {
-        val duplicates = EditorCommand.entries
+        val duplicates = EditorCommand.values()
             .groupBy { it.jsName }
             .filterValues { it.size > 1 }
             .keys
@@ -29,7 +29,7 @@ class EditorCommandTest {
     fun `jsName 非空且为合法标识符`() {
         val pattern = Regex("^[a-zA-Z][a-zA-Z0-9]*$")
 
-        EditorCommand.entries.forEach { command ->
+        EditorCommand.values().forEach { command ->
             assertTrue(
                 "${command.name} 的 jsName '${command.jsName}' 不是合法 JS 标识符",
                 pattern.matches(command.jsName),
@@ -45,7 +45,7 @@ class EditorCommandTest {
             "toggle", "set", "unset", "undo", "redo", "select", "clear", "align", "delete",
         )
 
-        EditorCommand.entries.forEach { command ->
+        EditorCommand.values().forEach { command ->
             assertTrue(
                 "${command.name} 的 jsName '${command.jsName}' 不符合 tiptap 命名约定",
                 allowedPrefixes.any { command.jsName.startsWith(it) },
