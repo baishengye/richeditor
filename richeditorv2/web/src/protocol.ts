@@ -27,6 +27,15 @@ export const BridgeEvent = {
   height: 'onHeightChanged',
   /** 获得/失去焦点，携带 "true"/"false" */
   focus: 'onFocusChange',
+  /**
+   * 点击了编辑器内的链接，携带链接地址。
+   *
+   * 注意：Link 扩展的 openOnClick 已被显式关闭（见 main.ts），
+   * 所以点击链接**不会**导航，而是走这个回调，由宿主决定怎么处理。
+   */
+  linkClick: 'onLinkClick',
+  /** 字数统计变化，携带 CharacterCount 的 JSON */
+  count: 'onCharacterCountChanged',
   /** 内部异常，携带错误信息 */
   error: 'onError',
 } as const
@@ -53,12 +62,29 @@ export interface EditorSnapshot {
   codeBlock: boolean
   /** 当前链接地址，无则为 null */
   link: string | null
+  /** 当前选区是否选中了一张图片 */
+  image: boolean
   canUndo: boolean
   canRedo: boolean
   /** 是否可编辑 */
   editable: boolean
   /** 当前文档是否为空（用于显示占位提示） */
   empty: boolean
+}
+
+/**
+ * 字数统计。
+ *
+ * 中文场景下「字数」通常指字符数，所以 [characters] 是主指标。
+ * 三个值都给出来，宿主想显示哪个自己选。
+ */
+export interface CharacterCount {
+  /** 字符数（**不包含**空白字符），中文场景下的「字数」 */
+  characters: number
+  /** 字符数（包含空白字符） */
+  charactersWithSpaces: number
+  /** 西文单词数（按空白切分且含字母/数字的片段） */
+  words: number
 }
 
 /** `RichEditor.init()` 的入参 */
@@ -99,6 +125,8 @@ export const SIMPLE_COMMANDS = [
   'unsetLink',
   // 清除对齐（回到默认），对应工具栏「对齐」组取消选中的场景
   'unsetTextAlign',
+  // 删除选中的图片
+  'deleteSelection',
   'undo',
   'redo',
   'selectAll',

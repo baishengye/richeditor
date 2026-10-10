@@ -131,6 +131,16 @@
                 app:iconPadding="0dp"
                 app:iconTint="@color/toolbar_toggle_text" />
 
+            <View style="@style/ToolbarDivider" />
+
+            <!-- ===== 插入图片：动作型，实际选图由宿主负责（见 EditorToolbar.onInsertImage） ===== -->
+            <ImageButton
+                android:id="@+id/btn_insert_image"
+                style="@style/ToolbarIconButton"
+                android:contentDescription="@string/action_insert_image"
+                android:src="@drawable/ic_image"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
         </LinearLayout>
     </HorizontalScrollView>
 

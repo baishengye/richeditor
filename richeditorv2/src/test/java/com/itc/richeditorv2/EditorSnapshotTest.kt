@@ -99,6 +99,13 @@ class EditorSnapshotTest {
     }
 
     @Test
+    fun `image 字段解析正确`() {
+        assertFalse(EditorSnapshot.fromJson("{}").image)
+        assertTrue(EditorSnapshot.fromJson("""{"image":true}""").image)
+        assertFalse(EditorSnapshot.fromJson("""{"image":false}""").image)
+    }
+
+    @Test
     fun `未知字段被忽略`() {
         val state = EditorSnapshot.fromJson("""{"bold":true,"未来新增字段":123}""")
         assertTrue(state.bold)

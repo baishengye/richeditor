@@ -40,8 +40,10 @@ class EditorCommandTest {
     @Test
     fun `jsName 全部以小写动词或 set 开头`() {
         // tiptap 的命名约定：toggleXxx / setXxx / unsetXxx / undo / redo / selectAll / clearContent
-        // 对齐用 alignXxx（JS 侧是对 setTextAlign 的无参别名）
-        val allowedPrefixes = listOf("toggle", "set", "unset", "undo", "redo", "select", "clear", "align")
+        // 对齐用 alignXxx（JS 侧是对 setTextAlign 的无参别名），删除用 deleteSelection
+        val allowedPrefixes = listOf(
+            "toggle", "set", "unset", "undo", "redo", "select", "clear", "align", "delete",
+        )
 
         EditorCommand.entries.forEach { command ->
             assertTrue(

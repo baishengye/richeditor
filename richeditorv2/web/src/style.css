@@ -143,6 +143,26 @@ body {
 .ProseMirror a {
   color: var(--re-focus);
   text-decoration: underline;
+  /* 链接可点，给出手型提示；实际点击行为由 JS 上报给宿主 */
+  cursor: pointer;
+}
+
+/*
+ * 图片。
+ * max-width 必须限制，否则插入大图（尤其是 base64）会把布局撑破、
+ * 并让 WebView 出现横向滚动。
+ */
+.ProseMirror img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 0.25em 0;
+}
+
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--re-focus);
+  outline-offset: 2px;
 }
 
 /* ProseMirror 内置的 gap cursor 视觉 */

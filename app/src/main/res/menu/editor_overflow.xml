@@ -56,6 +56,9 @@
             android:id="@id/menu_unlink"
             android:title="@string/menu_unlink" />
         <item
+            android:id="@id/menu_remove_image"
+            android:title="@string/menu_remove_image" />
+        <item
             android:id="@id/menu_divider"
             android:title="@string/menu_divider" />
     </group>

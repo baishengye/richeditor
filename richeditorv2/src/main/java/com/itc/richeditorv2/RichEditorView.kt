@@ -64,6 +64,28 @@ class RichEditorView @JvmOverloads constructor(
      */
     var onExternalLinkClick: ((url: String) -> Unit)? = null
 
+    /**
+     * 自定义资源拦截，在 assets 处理之前被调用。
+     *
+     * 返回非 null 表示“这个请求我来提供”，返回 null 则继续走默认的 assets 处理。
+     *
+     * 这是显示**本地图片**的关键扩展点。典型用法：宿主从相册选图后把文件拷到私有目录，
+     * 然后注册一个前缀，把 `https://appassets.androidplatform.net/user/<name>` 映射到文件字节流。
+     * 这样图片在 HTML 里就是一个普通的 https 地址，不需要开 `allowFileAccess`，
+     * 也不受 mixed content 限制（页面本身也是 https）。
+     *
+     * ```kotlin
+     * editor.onInterceptRequest = { request ->
+     *     val path = request.url.path ?: return@onInterceptRequest null
+     *     if (!path.startsWith("/user/")) return@onInterceptRequest null
+     *     val file = File(appDir, path.removePrefix("/user/"))
+     *     if (!file.exists()) return@onInterceptRequest null
+     *     WebResourceResponse("image/jpeg", null, file.inputStream())
+     * }
+     * ```
+     */
+    var onInterceptRequest: ((request: WebResourceRequest) -> WebResourceResponse?)? = null
+
     /** 编辑器是否已就绪 */
     var isEditorReady: Boolean = false
         private set
@@ -75,6 +97,14 @@ class RichEditorView @JvmOverloads constructor(
      * 不必等下一次推送。
      */
     var lastState: EditorSnapshot = EditorSnapshot.EMPTY
+        private set
+
+    /**
+     * 最近一次收到的字数统计。
+     *
+     * 与 [lastState] 同理：绑定界面前或重建后想立即拿到当前值，可以直接读它。
+     */
+    var lastCount: CharacterCount = CharacterCount.EMPTY
         private set
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -108,6 +138,15 @@ class RichEditorView @JvmOverloads constructor(
 
         override fun onFocusChanged(focused: Boolean) {
             dispatch { it.onFocusChanged(focused) }
+        }
+
+        override fun onLinkClick(url: String) {
+            dispatch { it.onLinkClick(url) }
+        }
+
+        override fun onCharacterCountChanged(count: CharacterCount) {
+            lastCount = count
+            dispatch { it.onCharacterCountChanged(count) }
         }
 
         override fun onError(message: String) {
@@ -184,6 +223,11 @@ class RichEditorView @JvmOverloads constructor(
         settings.setSupportMultipleWindows(false)
         settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.loadsImagesAutomatically = true
+        // 页面本身跑在 https://appassets.androidplatform.net，如果文档里引用了 http 图片，
+        // 默认会被当作 mixed content 直接拦掉（图片显示为空白且无报错）。
+        // 富文本场景下用户很可能粘贴 http 图片，所以这里放宽；
+        // 更安全的做法是让图片走 https 或 data URL，此处属于体验与安全的权衡。
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
 
         isVerticalScrollBarEnabled = false
         isHorizontalScrollBarEnabled = false
@@ -404,6 +448,28 @@ class RichEditorView @JvmOverloads constructor(
         return runScript("exec(${quote("setLink")}, ${quote(payload)})")
     }
 
+    /**
+     * 在光标处插入一张图片。
+     *
+     * @param src 图片地址，支持三种形式：
+     *  - `https://...`：网络图片（注意 http 会被 mixed content 处理，见 [configureWebView]）
+     *  - `data:image/...;base64,...`：直接把图片数据内嵌进文档（简单，但会让文档显著变大）
+     *  - `https://appassets.androidplatform.net/user/...`：配合 [onInterceptRequest]
+     *    映射到本地文件，是**大量本地图片的推荐做法**
+     *
+     * @return 就绪且参数合法时返回 true
+     */
+    fun insertImage(src: String): Boolean {
+        if (!requireReady("insertImage")) {
+            return false
+        }
+        if (src.isBlank()) {
+            return false
+        }
+        val payload = JSONObject().put("src", src).toString()
+        return runScript("exec(${quote("insertImage")}, ${quote(payload)})")
+    }
+
     // ==================== JS 调用 ====================
 
     /** 用 eval 结果判断成败（返回 true/false） */
@@ -497,6 +563,8 @@ class RichEditorView @JvmOverloads constructor(
             view: WebView,
             request: WebResourceRequest,
         ): WebResourceResponse? {
+            // 先给宿主机会（例如把自定义前缀映射到相册图片），未处理再走 assets
+            onInterceptRequest?.invoke(request)?.let { return it }
             // 把 https://appassets.androidplatform.net/assets/... 映射到 assets/
             return assetLoader.shouldInterceptRequest(request.url)
         }

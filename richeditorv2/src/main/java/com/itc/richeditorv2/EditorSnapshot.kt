@@ -40,6 +40,8 @@ data class EditorSnapshot(
     val codeBlock: Boolean = false,
     /** 当前链接地址，无则为 null */
     val link: String? = null,
+    /** 当前选区是否选中了一张图片 */
+    val image: Boolean = false,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     val editable: Boolean = true,
@@ -53,7 +55,8 @@ data class EditorSnapshot(
     override fun toString(): String =
         "EditorSnapshot(align=${align.jsValue}, bold=$bold, italic=$italic, underline=$underline, " +
             "strike=$strike, heading=$heading, list=$inList, quote=$blockquote, code=$codeBlock, " +
-            "link=$link, undo=$canUndo, redo=$canRedo, editable=$editable, empty=$empty)"
+            "link=$link, image=$image, undo=$canUndo, redo=$canRedo, " +
+            "editable=$editable, empty=$empty)"
 
     companion object {
         val EMPTY = EditorSnapshot()
@@ -80,6 +83,7 @@ data class EditorSnapshot(
                     blockquote = obj.optBoolean("blockquote", false),
                     codeBlock = obj.optBoolean("codeBlock", false),
                     link = if (obj.isNull("link")) null else obj.optString("link").takeIf { it.isNotEmpty() },
+                    image = obj.optBoolean("image", false),
                     canUndo = obj.optBoolean("canUndo", false),
                     canRedo = obj.optBoolean("canRedo", false),
                     editable = obj.optBoolean("editable", true),

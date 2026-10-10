@@ -91,7 +91,7 @@ class EditorToolbarStateTest {
         val actionCommands = listOf(
             EditorCommand.Undo, EditorCommand.Redo, EditorCommand.SelectAll,
             EditorCommand.ClearContent, EditorCommand.HorizontalRule,
-            EditorCommand.HardBreak, EditorCommand.UnsetLink,
+            EditorCommand.HardBreak, EditorCommand.UnsetLink, EditorCommand.DeleteSelection,
         )
         actionCommands.forEach { command ->
             assertFalse(

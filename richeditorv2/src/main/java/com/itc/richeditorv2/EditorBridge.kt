@@ -50,6 +50,22 @@ internal class EditorBridge(
         mainHandler.post { listener.onFocusChanged(value) }
     }
 
+    /**
+     * JS 侧拦截了链接点击（已 preventDefault，WebView 不会导航），上报给宿主决定怎么处理。
+     *
+     * 这里直接透传原始字符串：链接地址可能很长，且主线程不需要做任何解析。
+     */
+    @JavascriptInterface
+    fun onLinkClick(url: String) {
+        mainHandler.post { listener.onLinkClick(url) }
+    }
+
+    @JavascriptInterface
+    fun onCharacterCountChanged(json: String) {
+        // 在主线程解析：对象只有三个 int，开销可忽略
+        mainHandler.post { listener.onCharacterCountChanged(CharacterCount.fromJson(json)) }
+    }
+
     @JavascriptInterface
     fun onError(message: String) {
         mainHandler.post {

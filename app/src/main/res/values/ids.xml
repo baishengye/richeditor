@@ -12,6 +12,7 @@
     <item name="menu_code" type="id" />
     <item name="menu_link" type="id" />
     <item name="menu_unlink" type="id" />
+    <item name="menu_remove_image" type="id" />
     <item name="menu_divider" type="id" />
     <item name="menu_undo" type="id" />
     <item name="menu_redo" type="id" />

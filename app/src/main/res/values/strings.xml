@@ -19,6 +19,23 @@
     <string name="action_align_right">右对齐</string>
     <string name="action_undo">撤销</string>
     <string name="action_redo">重做</string>
+    <string name="action_insert_image">插入图片</string>
+    <string name="action_remove_image">删除图片</string>
+
+    <!-- 字数状态栏。%1$d 是字符数 -->
+    <string name="count_bar">共 %1$d 字</string>
+    <string name="count_bar_with_spaces">共 %1$d 字（含空格 %2$d）</string>
+
+    <string name="image_pick_failed">图片读取失败</string>
+    <string name="image_loading">正在处理图片…</string>
+    <string name="menu_remove_image">删除图片</string>
+
+    <string name="link_dialog_message">%1$s</string>
+    <string name="link_action_open">打开链接</string>
+    <string name="link_action_copy">复制地址</string>
+    <string name="link_copied">已复制到剪贴板</string>
+    <string name="link_unsupported">不支持的链接类型：%1$s</string>
+    <string name="link_open_failed">没有可以打开该链接的应用</string>
 
     <string name="menu_paragraph">正文</string>
     <string name="menu_heading1">标题 1</string>

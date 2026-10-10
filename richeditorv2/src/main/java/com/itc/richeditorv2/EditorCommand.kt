@@ -83,6 +83,14 @@ enum class EditorCommand(val jsName: String) {
     /** 全选 */
     SelectAll("selectAll"),
 
+    /**
+     * 删除当前选区。
+     *
+     * 最典型的用途是删除选中的图片（图片被选中时，删除选区就等于删除图片）。
+     * 属于动作型命令，没有选中态。
+     */
+    DeleteSelection("deleteSelection"),
+
     /** 清空内容 */
     ClearContent("clearContent"),
     ;
@@ -95,7 +103,10 @@ enum class EditorCommand(val jsName: String) {
      */
     val isToggle: Boolean
         get() = when (this) {
-            HorizontalRule, HardBreak, UnsetLink, Undo, Redo, SelectAll, ClearContent -> false
+            HorizontalRule, HardBreak, UnsetLink, Undo, Redo, SelectAll, ClearContent,
+            DeleteSelection,
+            -> false
+
             else -> true
         }
 }

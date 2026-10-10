@@ -46,6 +46,7 @@ export function buildSnapshot(editor: Editor): EditorSnapshot {
     blockquote: editor.isActive('blockquote'),
     codeBlock: editor.isActive('codeBlock'),
     link: typeof href === 'string' && href.length > 0 ? href : null,
+    image: editor.isActive('image'),
     canUndo: safeCan(editor, 'undo'),
     canRedo: safeCan(editor, 'redo'),
     editable: editor.isEditable,

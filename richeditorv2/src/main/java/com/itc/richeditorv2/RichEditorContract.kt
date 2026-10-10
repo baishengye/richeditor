@@ -32,5 +32,17 @@ internal object RichEditorContract {
     const val EVENT_SELECTION = "onSelectionChange"
     const val EVENT_HEIGHT = "onHeightChanged"
     const val EVENT_FOCUS = "onFocusChange"
+
+    /**
+     * 点击了编辑器内的链接，携带链接地址。
+     *
+     * JS 侧已关闭 Link 扩展的 openOnClick，所以点击链接**不会**触发 WebView 导航，
+     * 而是走这个回调，由宿主决定如何处理（打开浏览器 / 弹菜单 / 编辑链接）。
+     */
+    const val EVENT_LINK_CLICK = "onLinkClick"
+
+    /** 字数统计变化，携带 CharacterCount 的 JSON */
+    const val EVENT_COUNT = "onCharacterCountChanged"
+
     const val EVENT_ERROR = "onError"
 }

@@ -25,4 +25,19 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?attr/colorOutlineVariant" />
+
+    <TextView
+        android:id="@+id/fullscreen_count_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
 </LinearLayout>

@@ -65,6 +65,7 @@ object EditorToolbarState {
         EditorCommand.Redo,
         EditorCommand.SelectAll,
         EditorCommand.ClearContent,
+        EditorCommand.DeleteSelection,
         -> false
     }
 

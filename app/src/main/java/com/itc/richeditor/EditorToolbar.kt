@@ -56,8 +56,22 @@ class EditorToolbar @JvmOverloads constructor(
     /** 接管链接输入。为 null 时使用内置对话框 */
     var onRequestLink: ((currentUrl: String?) -> Unit)? = null
 
+    /**
+     * 点击「插入图片」按钮。为 null 时该按钮隐藏。
+     *
+     * 选图逻辑刻意不放进库：取图方式（相册 / 拍照 / 文件 / 网络）以及
+     * 图片存储策略（base64 还是拷到私有目录）都是产品决策，
+     * 宿主选好后调 [RichEditorView.insertImage] 即可。
+     */
+    var onInsertImage: (() -> Unit)? = null
+        set(value) {
+            field = value
+            insertImageButton?.visibility = if (value == null) GONE else VISIBLE
+        }
+
     private var editor: RichEditorView? = null
     private var expandButton: ImageButton? = null
+    private var insertImageButton: ImageButton? = null
     private var overflow: PopupMenu? = null
 
     private val toggleButtons = LinkedHashMap<Int, EditorCommand>()
@@ -103,6 +117,11 @@ class EditorToolbar @JvmOverloads constructor(
         expandButton = findViewById<ImageButton>(R.id.btn_expand).apply {
             visibility = if (onExpandClick == null) GONE else VISIBLE
             setOnClickListener { onExpandClick?.invoke() }
+        }
+
+        insertImageButton = findViewById<ImageButton>(R.id.btn_insert_image).apply {
+            visibility = if (onInsertImage == null) GONE else VISIBLE
+            setOnClickListener { onInsertImage?.invoke() }
         }
 
         registerMenuCommands()
@@ -154,6 +173,7 @@ class EditorToolbar @JvmOverloads constructor(
         menuCommands[R.id.menu_code] = EditorCommand.Code
         menuCommands[R.id.menu_link] = null // 需要输入 URL，特殊处理
         menuCommands[R.id.menu_unlink] = EditorCommand.UnsetLink
+        menuCommands[R.id.menu_remove_image] = EditorCommand.DeleteSelection
         menuCommands[R.id.menu_divider] = EditorCommand.HorizontalRule
         menuCommands[R.id.menu_undo] = EditorCommand.Undo
         menuCommands[R.id.menu_redo] = EditorCommand.Redo
@@ -182,6 +202,12 @@ class EditorToolbar @JvmOverloads constructor(
     }
 
     private fun applyMenuItemState(item: MenuItem, state: EditorSnapshot) {
+        // 「删除图片」只在真的选中图片时可用，否则就是个点了没反应的项
+        if (item.itemId == R.id.menu_remove_image) {
+            item.isEnabled = state.editable && state.image
+            return
+        }
+
         val command = menuCommands[item.itemId]
         if (command == null) {
             item.isEnabled = when (item.itemId) {

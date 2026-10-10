@@ -49,6 +49,27 @@ function parseHref(valueJson: string | null | undefined): string | null {
   return null
 }
 
+/** 从 `{"src":"..."}` 或裸字符串中取出图片地址 */
+function parseImageSrc(valueJson: string | null | undefined): string | null {
+  if (!valueJson) {
+    return null
+  }
+  const raw = valueJson.trim()
+  if (raw.length === 0 || raw === 'null') {
+    return null
+  }
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      const src = parsed['src']
+      return typeof src === 'string' && src.trim().length > 0 ? src.trim() : null
+    } catch {
+      return null
+    }
+  }
+  return raw
+}
+
 /**
  * 执行一个命令。
  *
@@ -75,6 +96,15 @@ export function runCommand(editor: Editor, name: string, valueJson?: string | nu
       return { ok: false, reason: 'setLink 需要 {"href":"https://..."} 或裸 URL 字符串' }
     }
     return { ok: editor.chain().focus().extendMarkRange('link').setLink({ href }).run() }
+  }
+
+  if (name === 'insertImage') {
+    const src = parseImageSrc(valueJson)
+    if (!src) {
+      return { ok: false, reason: 'insertImage 需要 {"src":"..."} 或裸地址字符串' }
+    }
+    // 插入后光标会落在图片之后，方便继续输入
+    return { ok: editor.chain().focus().setImage({ src }).run() }
   }
 
   if (!isSimpleCommand(name)) {

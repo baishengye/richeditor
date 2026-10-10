@@ -42,6 +42,30 @@ interface EditorEventListener {
     /** 焦点变化 */
     fun onFocusChanged(focused: Boolean) = Unit
 
+    /**
+     * 点击了编辑器内的链接。
+     *
+     * 这是**轻点**（click）触发，不是长按选择。此时 WebView 不会自主导航，
+     * 需要宿主自己决定怎么处理，例如：
+     * ```kotlin
+     * override fun onLinkClick(url: String) {
+     *     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+     * }
+     * ```
+     * 如果什么都不做，链接就是「点了没反应」——这通常不是用户想要的。
+     *
+     * 注意：链接地址来自文档内容，可能是任意 scheme（包括 javascript:）。
+     * 若要真的跳转，建议先校验 scheme 白名单，避免被恶意内容利用。
+     */
+    fun onLinkClick(url: String) = Unit
+
+    /**
+     * 字数统计变化。
+     *
+     * 每次内容变化（含 setContent）都会推送，但会去重，不会重复推相同的数值。
+     */
+    fun onCharacterCountChanged(count: CharacterCount) = Unit
+
     /** 内部错误，包含 JS 侧抛出的原因，便于排查 */
     fun onError(message: String) = Unit
 }

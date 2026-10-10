@@ -1,11 +1,12 @@
 import { Editor, type JSONContent } from '@tiptap/core'
 import { StarterKit } from '@tiptap/starter-kit'
 import { TextAlign } from '@tiptap/extension-text-align'
+import { Image } from '@tiptap/extension-image'
 import './style.css'
 import { emit } from './bridge'
 import { runCommand } from './commands'
 import { buildSnapshot } from './snapshot'
-import { API_OBJECT, BridgeEvent, type InitOptions } from './protocol'
+import { API_OBJECT, BridgeEvent, type CharacterCount, type InitOptions } from './protocol'
 
 const MOUNT_ID = 'rich-editor'
 
@@ -15,6 +16,8 @@ let lastHeight = -1
 let pendingHeightFrame = 0
 /** 上一次已上报的快照 JSON，用于去重 */
 let lastSnapshotJson = ''
+/** 上一次已上报的字数 JSON，用于去重 */
+let lastCountJson = ''
 /** Kotlin 可能在 onReady 之前就调用 setContent，这里先存下来，ready 后补写 */
 let pendingContent: string | null = null
 
@@ -104,6 +107,44 @@ function pushSnapshot(): void {
   }
 }
 
+/** 西文单词数：按空白切分，且片段里要含字母或数字（避免把纯标点算成单词） */
+function countWords(text: string): number {
+  const trimmed = text.trim()
+  if (trimmed.length === 0) {
+    return 0
+  }
+  return trimmed.split(/\s+/).filter((word) => /[A-Za-z0-9]/.test(word)).length
+}
+
+/**
+ * 统计并上报字数。
+ *
+ * 单独走 [BridgeEvent.count] 而不是塞进 [EditorSnapshot]，因为快照是按内容去重的：
+ * 输入文字时 bold/heading 等都不变，快照会被去重掉，字数变化就丢了。
+ */
+function pushCount(): void {
+  if (!editor) {
+    return
+  }
+  try {
+    // doc.textContent 只含文本节点，图片等非文本节点自然不计入
+    const text = editor.state.doc.textContent
+    const count: CharacterCount = {
+      characters: text.replace(/\s/g, '').length,
+      charactersWithSpaces: text.length,
+      words: countWords(text),
+    }
+    const json = JSON.stringify(count)
+    if (json === lastCountJson) {
+      return
+    }
+    lastCountJson = json
+    emit(BridgeEvent.count, json)
+  } catch (e) {
+    emit(BridgeEvent.error, `字数统计失败: ${String(e)}`)
+  }
+}
+
 function createEditor(options: InitOptions): boolean {
   const host = rootEl()
   if (!host) {
@@ -114,6 +155,7 @@ function createEditor(options: InitOptions): boolean {
   autoHeight = options.autoHeight !== false
   // 重建时清空去重基准，否则新实例的首个快照可能因为与旧实例相同而被吞掉
   lastSnapshotJson = ''
+  lastCountJson = ''
   if (typeof options.placeholder === 'string') {
     host.dataset['placeholder'] = options.placeholder
   }
@@ -123,15 +165,48 @@ function createEditor(options: InitOptions): boolean {
   editor = new Editor({
     element: host,
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // 关键：openOnClick 默认是 true，会让点击链接直接导航。
+        // 在 WebView 里这很遭——用户想改链接文字却被带走，而且会触发宿主侧的页面导航。
+        // 关掉它，改由下面的 handleDOMEvents.click 上报给宿主决定。
+        link: { openOnClick: false },
+      }),
       // 对齐不属于 StarterKit，必须单独引入；types 限定只允许块级节点带该属性
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      // 图片也不在 StarterKit 里。
+      // allowBase64: 允许 data URL，宿主从相册选图后可不解码直接塞进来（代价是文档变大）。
+      Image.configure({ inline: false, allowBase64: true }),
     ],
     content: initial ?? '<p></p>',
     editable: options.editable !== false,
+    editorProps: {
+      handleDOMEvents: {
+        /**
+         * 拦截链接点击。
+         *
+         * 返回 true 表示事件已处理，ProseMirror 不会再走默认行为，
+         * 因此 WebView 也不会发起导航——点击只会上报给 Kotlin。
+         */
+        click: (_view, event) => {
+          const target = event.target
+          if (!(target instanceof Element)) {
+            return false
+          }
+          const anchor = target.closest('a')
+          const href = anchor?.getAttribute('href')
+          if (!href) {
+            return false
+          }
+          emit(BridgeEvent.linkClick, href)
+          event.preventDefault()
+          return true
+        },
+      },
+    },
     onUpdate: ({ editor: instance }) => {
       emit(BridgeEvent.update, JSON.stringify(instance.getJSON()))
       syncEmptyClass()
+      pushCount()
       reportHeight()
     },
     onSelectionUpdate: () => {
@@ -149,6 +224,7 @@ function createEditor(options: InitOptions): boolean {
       syncEmptyClass()
       emit(BridgeEvent.ready, '1')
       pushSnapshot()
+      pushCount()
       // 先同步测一次保证初始高度一定送达，再用 rAF 走后续的合并更新
       flushHeight()
       reportHeight()
@@ -187,6 +263,8 @@ function applyContent(raw: string): boolean {
   editor.commands.setContent(content, { emitUpdate: false })
   syncEmptyClass()
   pushSnapshot()
+  // setContent 不触发 onUpdate，所以字数要手动补一次
+  pushCount()
   flushHeight()
   reportHeight()
   return true
@@ -256,6 +334,7 @@ const api: RichEditorApi = {
         emit(BridgeEvent.error, result.reason)
       }
       syncEmptyClass()
+      pushCount()
       flushHeight()
       reportHeight()
       return result.ok
@@ -321,6 +400,7 @@ const api: RichEditorApi = {
     editor = null
     lastHeight = -1
     lastSnapshotJson = ''
+    lastCountJson = ''
     return true
   },
 }
