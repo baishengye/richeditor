@@ -149,6 +149,10 @@ class RichEditorView @JvmOverloads constructor(
             dispatch { it.onCharacterCountChanged(count) }
         }
 
+        override fun onEmojiBlocked(blocked: String) {
+            dispatch { it.onEmojiBlocked(blocked) }
+        }
+
         override fun onError(message: String) {
             dispatch { it.onError(message) }
         }
@@ -289,11 +293,14 @@ class RichEditorView @JvmOverloads constructor(
         readyTimeout = null
         isEditorReady = true
 
-        // 依序补发排队操作：placeholder → editable → content
+        // 依序补发排队操作：placeholder → editable → emoji 开关 → content
         pendingPlaceholder?.let { applyPlaceholder(it) }
         pendingPlaceholder = null
         pendingEditable?.let { applyEditable(it) }
         pendingEditable = null
+        // emoji 开关不需要单独的排队变量：默认值与 JS 侧一致，
+        // 这里无条件同步一次就能覆盖“就绪前就设置过”的情况
+        applyEmojiInput(isEmojiInputAllowed)
         pendingContent?.let { applyContent(it) }
         pendingContent = null
 
@@ -386,6 +393,58 @@ class RichEditorView @JvmOverloads constructor(
 
     private fun applyEditable(editable: Boolean) {
         runScript("setEditable(${quote(editable.toString())})")
+    }
+
+    /** 当前是否允许输入 emoji，默认 false。用 [setAllowEmojiInput] 修改。 */
+    var isEmojiInputAllowed: Boolean = false
+        private set
+
+    /**
+     * 设置是否允许输入 emoji，**默认不允许**。
+     *
+     * ## 拦的是“输入”，不会动已有内容
+     * 被拦下的只有用户新输入的内容：键盘、输入法表情面板、粘贴、拖放都算。
+     * 其中粘贴是“只摘掉表情”，同一次粘贴里的其他文字和格式会正常保留，
+     * 不会因为夹了一个表情就整段粘不进去。
+     *
+     * **但 [setContent] 完全不受影响**：服务器下发的历史内容即使含表情也会原样保留。
+     * 这是刻意的——如果过滤做成“无差别净化”，用户往往到下一次保存时才发现内容被悄悄改过，
+     * 这类数据丢失极难排查。所以这里的策略是：只管新输入，不动已有内容。
+     * 同理，关掉开关也**不会清除**文档里已有的表情，可以放心地在已有内容上切换策略。
+     *
+     * ## 被拦下时有回调
+     * 每次拦下都会回调 [EditorEventListener.onEmojiBlocked]，宿主可以据此提示用户。
+     * 如果完全不处理，用户按了表情键盘却毫无反馈，会以为编辑器坏了。
+     *
+     * ```kotlin
+     * editor.setAllowEmojiInput(false)  // 禁止（默认）
+     * editor.setAllowEmojiInput(true)   // 放开
+     * ```
+     *
+     * 就绪前调用也安全：就绪时会自动同步一次当前设置。
+     *
+     * ## 识别范围
+     * 默认能识别完整的表情序列（含肤色、国旗、ZWJ 组合、键帽等），
+     * 并且刻意**不**把 `©` `®` `™` `↔` `♥` 这类日常排版符号当成表情。
+     *
+     * 注意：依赖 WebView 的 Unicode 属性转义支持（WebView 64+）。
+     * 更旧的 WebView 上会退化为“只拦增补平面字符”，能拦住绝大多数表情，
+     * 但会漏掉 `☺️` `❤️` 这类需要变体选择符的 BMP 字符。
+     */
+    fun setAllowEmojiInput(allow: Boolean) {
+        if (destroyed) {
+            return
+        }
+        isEmojiInputAllowed = allow
+        if (!isEditorReady) {
+            // 未就绪时无需单独排队：handleReady() 里会用当前值同步一次
+            return
+        }
+        applyEmojiInput(allow)
+    }
+
+    private fun applyEmojiInput(allow: Boolean) {
+        runScript("setAllowEmojiInput(${quote(allow.toString())})")
     }
 
     /** 设置占位文本（空文档时显示）。就绪前调用会排队。 */

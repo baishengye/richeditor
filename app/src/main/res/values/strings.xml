@@ -26,6 +26,10 @@
     <string name="count_bar">共 %1$d 字</string>
     <string name="count_bar_with_spaces">共 %1$d 字（含空格 %2$d）</string>
 
+    <!-- emoji 输入开关（演示 RichEditorView.setAllowEmojiInput）。%1$s 是被拦下的表情 -->
+    <string name="allow_emoji">允许输入表情</string>
+    <string name="emoji_blocked">暂不支持输入表情 %1$s</string>
+
     <string name="image_pick_failed">图片读取失败</string>
     <string name="image_loading">正在处理图片…</string>
     <string name="menu_remove_image">删除图片</string>

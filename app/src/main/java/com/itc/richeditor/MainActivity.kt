@@ -20,6 +20,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.itc.richeditorv2.CharacterCount
 import com.itc.richeditorv2.EditorEventListener
 import com.itc.richeditorv2.EditorSnapshot
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var editor: RichEditorView
     private lateinit var toolbar: EditorToolbar
     private lateinit var countBar: TextView
+    private lateinit var emojiSwitch: MaterialSwitch
 
     /** 缓存最新内容，供 onSaveInstanceState 这类同步场景使用 */
     private var latestContent: String? = null
@@ -101,6 +103,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        override fun onEmojiBlocked(blocked: String) {
+            // 库把输入拦下了，这里必须给一点反馈。
+            // 否则用户按了输入法的表情面板却毫无反应，会以为编辑器坏了。
+            Toast.makeText(this@MainActivity, getString(R.string.emoji_blocked, blocked), Toast.LENGTH_SHORT)
+                .show()
+        }
+
         override fun onFocusChanged(focused: Boolean) {
             Log.d(TAG, "focus: $focused")
         }
@@ -128,6 +137,7 @@ class MainActivity : AppCompatActivity() {
         editor = findViewById(R.id.editor)
         toolbar = findViewById(R.id.editor_toolbar)
         countBar = findViewById(R.id.count_bar)
+        emojiSwitch = findViewById(R.id.emoji_switch)
 
         // 用 addListener 而不是直接赋值 editor.listener，
         // 这样工具栏与页面各自订阅，互不覆盖
@@ -139,6 +149,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         toolbar.bindTo(editor)
+        // emoji 输入开关：库默认就禁止输入表情，这里只是演示如何切换。
+        // 注意开关状态以库为准（editor.isEmojiInputAllowed），不要反过来假设按钮是唯一来源。
+        emojiSwitch.isChecked = editor.isEmojiInputAllowed
+        emojiSwitch.setOnCheckedChangeListener { _, checked ->
+            editor.setAllowEmojiInput(checked)
+        }
         toolbar.onExpandClick = { openFullscreenEditor() }
         // 选图逻辑（相册 / 拍照 / 网络）由宿主决定，库只负责把图片插进文档
         toolbar.onInsertImage = {
@@ -271,6 +287,11 @@ class MainActivity : AppCompatActivity() {
             override fun onLinkClick(url: String) {
                 showLinkDialog(url)
             }
+
+            override fun onEmojiBlocked(blocked: String) {
+                Toast.makeText(this@MainActivity, getString(R.string.emoji_blocked, blocked), Toast.LENGTH_SHORT)
+                    .show()
+            }
         })
 
         dialogToolbar.bindTo(dialogEditor)
@@ -281,6 +302,8 @@ class MainActivity : AppCompatActivity() {
             .create()
 
         dialog.setOnShowListener {
+            // 新建的 RichEditorView 是独立实例，不会继承主编辑器的设置，必须同步一次
+            dialogEditor.setAllowEmojiInput(editor.isEmojiInputAllowed)
             dialogEditor.loadEditor()
             editor.getContentJson { json ->
                 if (json.isNotEmpty()) {

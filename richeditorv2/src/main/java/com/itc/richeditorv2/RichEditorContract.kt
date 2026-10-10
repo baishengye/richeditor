@@ -44,5 +44,12 @@ internal object RichEditorContract {
     /** 字数统计变化，携带 CharacterCount 的 JSON */
     const val EVENT_COUNT = "onCharacterCountChanged"
 
+    /**
+     * 输入了 emoji 但被拦下，携带被拦下的 emoji 字符。
+     *
+     * 默认策略就是禁止输入 emoji，详见 [RichEditorView.setAllowEmojiInput]。
+     */
+    const val EVENT_EMOJI_BLOCKED = "onEmojiBlocked"
+
     const val EVENT_ERROR = "onError"
 }

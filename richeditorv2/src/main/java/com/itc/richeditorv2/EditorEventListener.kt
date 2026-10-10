@@ -66,6 +66,25 @@ interface EditorEventListener {
      */
     fun onCharacterCountChanged(count: CharacterCount) = Unit
 
+    /**
+     * 输入了 emoji，但因为当前策略是禁止输入而被拦下了。
+     *
+     * 默认就是禁止输入 emoji，用 [RichEditorView.setAllowEmojiInput] 放开。
+     * 拦下时回调这里，是奉劝宿主至少给一句提示：
+     *
+     * ```kotlin
+     * override fun onEmojiBlocked(blocked: String) {
+     *     Toast.makeText(context, "暂不支持输入表情", Toast.LENGTH_SHORT).show()
+     * }
+     * ```
+     *
+     * 不做任何处理也可以，但用户按了表情键盘却毫无反应，会以为编辑器出了问题。
+     *
+     * @param blocked 被拦下的 emoji 字符（可能是一串，且已截断），**仅供提示**，
+     *   不要拿它做业务判断（例如“内容里有一个表情”之类的判断应该用内容本身去做）
+     */
+    fun onEmojiBlocked(blocked: String) = Unit
+
     /** 内部错误，包含 JS 侧抛出的原因，便于排查 */
     fun onError(message: String) = Unit
 }

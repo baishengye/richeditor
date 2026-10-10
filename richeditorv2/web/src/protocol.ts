@@ -36,6 +36,14 @@ export const BridgeEvent = {
   linkClick: 'onLinkClick',
   /** 字数统计变化，携带 CharacterCount 的 JSON */
   count: 'onCharacterCountChanged',
+  /**
+   * 输入了 emoji 但被拦下，携带被拦下的 emoji 字符。
+   *
+   * 默认策略就是**禁止输入 emoji**（见主入口的 `setAllowEmojiInput`）。
+   * 之所以专门设一个回调：输入被静默吞掉，用户分不清"编辑器不支持"和"编辑器坏了"，
+   * 宿主接住它给一句提示即可。
+   */
+  emojiBlocked: 'onEmojiBlocked',
   /** 内部异常，携带错误信息 */
   error: 'onError',
 } as const

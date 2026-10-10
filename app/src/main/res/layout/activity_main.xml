@@ -42,16 +42,35 @@
         android:layout_height="1dp"
         android:background="?attr/colorOutlineVariant" />
 
-    <!-- 字数状态栏，数据来自 EditorEventListener.onCharacterCountChanged -->
-    <TextView
-        android:id="@+id/count_bar"
+    <!--
+      状态栏：左边是 emoji 输入开关（演示 RichEditorView.setAllowEmojiInput），
+      右边是字数（数据来自 EditorEventListener.onCharacterCountChanged）。
+    -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="end"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="6dp"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="12sp"
-        tools:text="共 0 字" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp">
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/emoji_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="0dp"
+            android:text="@string/allow_emoji"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/count_bar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:paddingVertical="6dp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            tools:text="共 0 字" />
+    </LinearLayout>
 
 </LinearLayout>

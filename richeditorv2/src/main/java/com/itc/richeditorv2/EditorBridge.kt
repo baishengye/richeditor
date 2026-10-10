@@ -66,6 +66,16 @@ internal class EditorBridge(
         mainHandler.post { listener.onCharacterCountChanged(CharacterCount.fromJson(json)) }
     }
 
+    /**
+     * JS 侧拦下了 emoji 输入，上报给宿主提示用户。
+     *
+     * 与 [onLinkClick] 同理，直接透传字符串：内容很短，且主线程不需要做任何解析。
+     */
+    @JavascriptInterface
+    fun onEmojiBlocked(blocked: String) {
+        mainHandler.post { listener.onEmojiBlocked(blocked) }
+    }
+
     @JavascriptInterface
     fun onError(message: String) {
         mainHandler.post {
