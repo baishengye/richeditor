@@ -38,6 +38,12 @@
     <string name="link_action_open">打开链接</string>
     <string name="link_action_copy">复制地址</string>
     <string name="link_copied">已复制到剪贴板</string>
+
+    <!-- 长按字数栏查看导出 HTML（用于核对属性是否被保留） -->
+    <string name="export_html_title">导出的 HTML</string>
+    <string name="export_html_loading">正在读取…</string>
+    <string name="export_html_empty">编辑器尚未就绪，读不到内容</string>
+    <string name="export_html_copied">HTML 已复制到剪贴板</string>
     <string name="link_unsupported">不支持的链接类型：%1$s</string>
     <string name="link_open_failed">没有可以打开该链接的应用</string>
 

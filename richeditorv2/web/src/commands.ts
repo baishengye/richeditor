@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/core'
-import { normalizeImageAlign } from './image'
+import { activeMediaNode, normalizeMediaAlign, sanitizeMediaUrl } from './media'
 import { isSimpleCommand } from './protocol'
 import { resolveAlign } from './snapshot'
 
@@ -87,17 +87,18 @@ export function runCommand(editor: Editor, name: string, valueJson?: string | nu
 
   const alignValue = ALIGN_ALIAS[name]
   if (alignValue !== undefined) {
-    // 图片要单独处理：它是块级叶子节点，不在段落里，
-    // 所以 `setTextAlign`（作用于 heading/paragraph）对它完全无效。
-    // 光标落在图片上时改的是图片自身的 textAlign 属性（渲染成 margin:auto）。
-    if (editor.isActive('image')) {
+    // 媒体节点（图片/视频/内嵌页）要单独处理：它们是块级叶子节点，不在段落里，
+    // 所以 `setTextAlign`（作用于 heading/paragraph）对它们完全无效。
+    // 光标落在它们身上时改的是节点自身的 textAlign 属性（渲染成 margin:auto）。
+    const mediaNode = activeMediaNode(editor)
+    if (mediaNode) {
       return {
         ok: editor
           .chain()
           .focus()
-          // left 归一化为 null：图片不写任何样式就是靠左，
+          // left 归一化为 null：不写任何样式就是靠左，
           // 避免“未设置”与“显式左对齐”在文档里变成两种表示
-          .updateAttributes('image', { textAlign: alignValue === 'left' ? null : alignValue })
+          .updateAttributes(mediaNode, { textAlign: alignValue === 'left' ? null : alignValue })
           .run(),
       }
     }
@@ -122,7 +123,7 @@ export function runCommand(editor: Editor, name: string, valueJson?: string | nu
     // 继承当前对齐方式：用户在「居中」状态下插图，图片也应该居中。
     // 否则“选了居中但图片还是靠左”，用户会以为对齐按钮没生效。
     // 图片是独立块级节点，插入时不会自动跟随所在段落，必须显式带上。
-    const textAlign = normalizeImageAlign(resolveAlign(editor))
+    const textAlign = normalizeMediaAlign(resolveAlign(editor))
     //
     // 不用 `setImage`：它的选项类型 `SetImageOptions` 只声明了 src/alt/title，
     // 不含我们扩展出来的 textAlign（TS 类型不会随运行时 schema 自动更新）。
@@ -131,6 +132,23 @@ export function runCommand(editor: Editor, name: string, valueJson?: string | nu
     return {
       ok: editor.chain().focus().insertContent({ type: 'image', attrs: { src, textAlign } }).run(),
     }
+  }
+
+  // 视频 / 内嵌页：与 insertImage 同构（都是块级叶子节点），同样继承当前对齐方式。
+  // 地址经 sanitizeMediaUrl 过滤，挡掉 javascript: 这类协议。
+  if (name === 'insertVideo' || name === 'insertIframe') {
+    const kind = name === 'insertVideo' ? 'video' : 'iframe'
+    const raw = parseImageSrc(valueJson)
+    const src = sanitizeMediaUrl(raw)
+    if (!src) {
+      return {
+        ok: false,
+        reason:
+          `${name} 需要 {"src":"https://..."} 或裸地址字符串，且只允许 http/https（含相对地址）。`,
+      }
+    }
+    const textAlign = normalizeMediaAlign(resolveAlign(editor))
+    return { ok: editor.chain().focus().insertContent({ type: kind, attrs: { src, textAlign } }).run() }
   }
 
   if (!isSimpleCommand(name)) {

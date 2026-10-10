@@ -165,6 +165,121 @@ body {
   outline-offset: 2px;
 }
 
+/*
+ * 视频、音频与内嵌页。
+ * 与图片同样是块级元素；max-width 必须限制，否则播放器按固定像素会把布局撑破、
+ * 让 WebView 出现横向滚动。
+ */
+.ProseMirror video,
+.ProseMirror audio,
+.ProseMirror iframe {
+  display: block;
+  max-width: 100%;
+  border: 0;
+  border-radius: 6px;
+  margin: 0.25em 0;
+  /* 播放器加载/封面出来之前是透明的，给个底色避免"一块空白"的观感 */
+  background: #000;
+}
+
+/*
+ * 音频条很矮，给黑底会显得像一块黑线，改为不强制底色。
+ *
+ * **注意这里绝对不能写 `height: auto`**（踩过坑）：
+ * `<audio>` 没有固有宽高比，控件又位于 shadow DOM 内、不参与常规的内容高度计算，
+ * 所以一旦显式声明 `height: auto`，高度就会被算成 **0** —— 播放器彻底消失，
+ * 而 DOM 里元素还在、`readyState` 也是 4，非常难查
+ *（实测：桌面 Chrome 与 WebView 都是 0；去掉这条即恢复浏览器默认的 54px）。
+ * 视频不受影响，因为视频有固有宽高比，`height: auto` 能由宽度推出来。
+ */
+.ProseMirror audio {
+  background: none;
+}
+
+.ProseMirror video {
+  height: auto;
+}
+
+/*
+ * 没有显式 width 的视频做自适应，占满整行宽度。
+ * 理由：素材常见 320×176、640×360 这类小尺寸，在手机上按原始像素显示只有屏幕的
+ * 三分之一宽，看起来像坏掉了一样。与下面 iframe 的处理保持一致。
+ *
+ * 用 :not([width]) 是因为服务端可能带 width 属性指定尺寸，那种情况要尊重原值。
+ * 这是纯 CSS，**不改动导出的 HTML** —— 加不加这条，存回去的属性都一样。
+ */
+.ProseMirror video:not([width]) {
+  width: 100%;
+  height: auto;
+}
+
+/*
+ * 没有显式 width 的内嵌页才做自适应（占满宽度 + 16:9）。
+ * 用 :not([width]) 是因为服务端常会带 width/height 属性指定尺寸，
+ * 那种情况应当尊重原值，不能一律覆盖成 100%。
+ */
+.ProseMirror iframe:not([width]) {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+}
+
+.ProseMirror video.ProseMirror-selectednode,
+.ProseMirror audio.ProseMirror-selectednode,
+.ProseMirror iframe.ProseMirror-selectednode {
+  outline: 2px solid var(--re-focus);
+  outline-offset: 2px;
+}
+
+/*
+ * 表格。
+ * TinyMCE 导出的表格自带 `border="1" style="border-collapse: collapse; width: 100%"`，
+ * 所以这里只补**边框颜色与内边距**这类在编辑器里才好看出结构的样式，
+ * 不覆盖宽度/合并方式（那些由内容自带的内联样式决定，更忠实于原样）。
+ */
+.ProseMirror table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  /* 没有内联宽度时（手写 HTML）也能不溢出 */
+  max-width: 100%;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid var(--re-border);
+  padding: 0.35em 0.5em;
+  vertical-align: top;
+  /* 单元格里的长串（如 URL）不应把表格撑破 */
+  word-break: break-word;
+}
+
+.ProseMirror th {
+  background: var(--re-code-bg);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* 单元格里只有一个空段落时，行高会显得偏高，压一下 */
+.ProseMirror th > p,
+.ProseMirror td > p {
+  margin: 0;
+}
+
+/* tiptap 选中单元格的高亮 */
+.ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(59, 130, 246, 0.14);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  position: relative;
+}
+
 /* ProseMirror 内置的 gap cursor 视觉 */
 .ProseMirror-gapcursor:after {
   border-top-color: var(--re-focus);

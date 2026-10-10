@@ -1,5 +1,6 @@
 import { Image } from '@tiptap/extension-image'
 import type { AlignValue } from './protocol'
+import { MEDIA_ALIGN_STYLE, normalizeMediaAlign, parseAlignFromStyle } from './media'
 
 /**
  * 图片节点支持对齐。
@@ -26,19 +27,10 @@ import type { AlignValue } from './protocol'
  * 而且会让"未设置"和"显式左对齐"在文档里产生两份不同的表示。
  * 因此 `left` 一律归一化为 `null`（无属性）。
  */
-export const IMAGE_ALIGN_STYLE: Readonly<Record<'center' | 'right', string>> = {
-  center: 'display: block; margin-left: auto; margin-right: auto',
-  right: 'display: block; margin-left: auto; margin-right: 0',
-}
+export const IMAGE_ALIGN_STYLE = MEDIA_ALIGN_STYLE
 
-/**
- * 把属性值归一化成 `'center' | 'right' | null`。
- *
- * `left` 与任何非法值都归为 `null`，保证同一个视觉状态只有一种表示。
- */
-export function normalizeImageAlign(value: unknown): 'center' | 'right' | null {
-  return value === 'center' || value === 'right' ? value : null
-}
+/** 把属性值归一化成 `'center' | 'right' | null`（`left` 与非法值都归为 `null`） */
+export const normalizeImageAlign = normalizeMediaAlign
 
 export const AlignedImage = Image.extend({
   addAttributes() {
@@ -56,27 +48,11 @@ export const AlignedImage = Image.extend({
        */
       textAlign: {
         default: null,
-
-        /**
-         * 从已保存的 HTML 里读回对齐。
-         *
-         * 判断依据是 `margin-left/right` 是否 `auto`（这是我们自己写出去的形式），
-         * 所以解析是确定的、不会误判。
-         */
-        parseHTML: (element) => {
-          const style = (element as HTMLElement).style
-          if (style.marginLeft === 'auto' && style.marginRight === 'auto') {
-            return 'center'
-          }
-          if (style.marginLeft === 'auto') {
-            return 'right'
-          }
-          return null
-        },
-
+        // 从 style 的 margin-left/right 是否为 auto 读回，判据确定不会误判
+        parseHTML: (element) => parseAlignFromStyle(element),
         renderHTML: (attributes) => {
-          const align = normalizeImageAlign(attributes['textAlign'])
-          return align ? { style: IMAGE_ALIGN_STYLE[align] } : {}
+          const align = normalizeMediaAlign(attributes['textAlign'])
+          return align ? { style: MEDIA_ALIGN_STYLE[align] } : {}
         },
       },
     }

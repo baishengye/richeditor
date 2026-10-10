@@ -2,6 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      加载网络媒体（图片 / 视频 / 音频）必需。https 是默认允许的，不需要额外配置。
+      注意：这条权限是**宿主**该声明的，所以库本身不声明它（见下面的说明）。
+      若你的项目还要加载 http:// 资源，需要另加 android:usesCleartextTraffic="true"
+      （演示里全部用 https，所以不需要）。
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

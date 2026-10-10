@@ -512,15 +512,38 @@ class RichEditorView @JvmOverloads constructor(
      * 设置内容。
      *
      * @param content ProseMirror 文档 JSON（推荐），也接受 HTML 片段。
-     *   传 null 或空串会清空为单个空段落。
+     *   传入 `<video>` / `<iframe>` 也能渲染（见 [insertVideo] / [insertIframe]）。
      *
      * 就绪前调用会排队，就绪后自动补发，不会丢内容。
      * 设置动作本身不触发 [EditorEventListener.onContentChanged]（避免回声循环），
      * 但仍会触发 [EditorEventListener.onStateChanged] 以刷新工具栏。
+     *
+     * ## 关于传空值（这里和直觉不一样，很重要）
+     * 传 `null` / 空串 / 纯空白**不会清空文档，而是被忽略**（保持原内容不变），
+     * 并通过 [EditorEventListener.onError] 报出来。两点原因：
+     *  1. 请容错。宿主最常见的写法是 `setContent(data.description)`，当接口没返回、
+     *     字段名写错时它就是空的；此时若把编辑器清空，等于把用户已有内容抹掉。
+     *  2. 不静默。以前这种情况什么都不做、也不报错，现象就是
+     *     "调了 setContent、编辑器一片空白、也没有任何提示"，极难排查。
+     *
+     * **需要清空编辑器请用 [perform] + [EditorCommand.ClearContent]。**
+     *
+     * ## 解析失败时也不会破坏现有内容
+     * 内容以 `{` / `[` 开头但不是合法 JSON 时，同样不改动文档，只报错。
+     * 另：若内容解析后文档实际为空（例如全部是不支持的标签），也会报错并列出
+     * 输入里出现过的标签名，方便定位。
      */
     fun setContent(content: String?) {
         if (destroyed) {
             return
+        }
+        if (content.isNullOrBlank()) {
+            // 在本侧也记一条日志：宿主未挂 onError 时，logcat 是唯一线索
+            Log.w(
+                TAG,
+                "setContent 收到空内容（null / 空串 / 空白），已忽略，文档保持不变。" +
+                    "需要清空请用 perform(EditorCommand.ClearContent)。",
+            )
         }
         if (!isEditorReady) {
             pendingContent = content ?: ""
@@ -726,6 +749,75 @@ class RichEditorView @JvmOverloads constructor(
         return runScript("exec(${quote("insertImage")}, ${quote(payload)})")
     }
 
+    /**
+     * 在光标处插入一个视频。
+     *
+     * @param src 视频地址，只允许 `http` / `https`（含相对地址）。
+     *   其他协议（`javascript:` / `data:` / `file:` 等）会被拦下，命令返回 false。
+     *   服务端常见的 `<video><source src="..."></video>` 写法在 [setContent] 时
+     *   也能正常解析，不必手动调这个方法。
+     *
+     * 点视频上的播放按钮即可播放。
+     *
+     * **全屏播放：不支持。** `<video>` 自带的那个全屏按钮走的是
+     * `WebChromeClient.onShowCustomView`，本库的 WebChromeClient 是个空实现，
+     * 所以点它**不会有任何反应**（不会黑屏，只是无效）。
+     * 之前这里的注释写成"已支持"，是错误的，已修正。
+     * 若业务上确实需要全屏，建议在宿主侧不依赖它，而是自行做全屏浮层。
+     */
+    fun insertVideo(src: String): Boolean = insertMedia("insertVideo", src)
+
+    /**
+     * 在光标处插入一个内嵌页面（`<iframe>`）。
+     *
+     * @param src 页面地址，只允许 `http` / `https`（含相对地址）。
+     *
+     * **安全提醒**：允许任意 iframe 等于把任意第三方页面嵌进 App。
+     * 库只做了协议白名单，不限制域名（"允许哪些站"属于业务决策）。
+     * 内容来源不可信时，建议在服务端先行过滤或改成域名白名单。
+     */
+    fun insertIframe(src: String): Boolean = insertMedia("insertIframe", src)
+
+    private fun insertMedia(commandName: String, src: String): Boolean {
+        if (!requireReady(commandName)) {
+            return false
+        }
+        if (src.isBlank()) {
+            return false
+        }
+        val payload = JSONObject().put("src", src).toString()
+        return runScript("exec(${quote(commandName)}, ${quote(payload)})")
+    }
+
+    /**
+     * 在光标处插入**纯文本**。
+     *
+     * 用途：PC 端（TinyMCE）常有「插入日期 / 时间 / 变量」这类按钮，做的都是
+     * "在光标处插一段字"。此前移动端没有等价能力：用 [setContent] 会重置整个文档，
+     * 用 [perform] 又只认 [EditorCommand] 白名单里的命令 —— 所以补上这个方法。
+     *
+     * ## 刻意不解析 HTML
+     * 传入的文本会被**当成字面量**插入，`<b>` 会原样显示成 `<b>` 而不是加粗。
+     * 这样做是刻意的：宿主传入的往往是用户输入或来自接口的字段，
+     * 一旦按 HTML 解析就等于把注入通道打开了（`<img onerror=...>`）。
+     * 需要插入富内容请用 [setContent]。
+     *
+     * 插入位置是当前选区；若编辑器尚未获得焦点，插入点仍是上次的选区（不会丢）。
+     * 需要"插到末尾"这种语义请先自行 [focusEditor] 并移动光标。
+     *
+     * @param text 要插入的文本，空串返回 false（不做任何事）
+     * @return 就绪且参数非空时返回 true
+     */
+    fun insertText(text: String): Boolean {
+        if (!requireReady("insertText")) {
+            return false
+        }
+        if (text.isEmpty()) {
+            return false
+        }
+        return runScript("insertText(${quote(text)})")
+    }
+
     // ==================== JS 调用 ====================
 
     /** 用 eval 结果判断成败（返回 true/false） */
@@ -853,14 +945,32 @@ class RichEditorView @JvmOverloads constructor(
             error: WebResourceError,
         ) {
             val description = error.description?.toString().orEmpty()
-            Log.e(
-                TAG,
-                "onReceivedError mainFrame=${request.isForMainFrame} " +
-                    "url=${request.url} code=${error.errorCode} $description",
-            )
+
             if (!request.isForMainFrame) {
+                // 子资源的失败**不能仅凭这个回调判定**，两个方向都能出问题：
+                //
+                // 1. 会"误报"：实测（真机 SM-A5560 / Android 15 / WebView 142）正文里 5 个媒体
+                //    元素全部正常 —— 查 DOM 得到 readyState=4（HAVE_ENOUGH_DATA）、
+                //    videoWidth/duration 都是真值、`media.error` 为 null ——
+                //    但其中仍有元素触发了本回调（ERR_FAILED / ERR_BLOCKED_BY_RESPONSE）。
+                //    媒体会发多次请求（探测、Range、重定向），被中止或被后续请求取代的那次
+                //    也会走到这里。
+                // 2. 也会"漏判"：真正的失败（例如宿主没声明 INTERNET 权限）同样只会在这里
+                //    留一条记录，而页面上表现为播放器一直转圈。
+                //
+                // 所以判断媒体到底能不能用，应该查 DOM 里的
+                // `readyState` / `media.error`，而不是看这个回调。
+                // 早期版本这里用的是 Log.e，排查时被自己的日志带偏过一次
+                //（满屏 error 但画面完全正常），所以降为 debug。
+                Log.d(
+                    TAG,
+                    "子资源加载未成功（未必是真的失败，详见注释）url=${request.url} " +
+                        "code=${error.errorCode} $description",
+                )
                 return
             }
+
+            Log.e(TAG, "onReceivedError mainFrame=true url=${request.url} code=${error.errorCode} $description")
             bridge.reportError(
                 "编辑器页面加载失败: url=${request.url} code=${error.errorCode} $description",
             )

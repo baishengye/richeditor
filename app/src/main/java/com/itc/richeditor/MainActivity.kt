@@ -7,10 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import android.view.ViewGroup
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -139,6 +142,12 @@ class MainActivity : AppCompatActivity() {
         countBar = findViewById(R.id.count_bar)
         emojiSwitch = findViewById(R.id.emoji_switch)
 
+        // 长按字数栏看导出 HTML，用于在真机上核对属性保留情况
+        countBar.setOnLongClickListener {
+            showExportedHtml()
+            true
+        }
+
         // 用 addListener 而不是直接赋值 editor.listener，
         // 这样工具栏与页面各自订阅，互不覆盖
         editor.addListener(editorEvents)
@@ -206,6 +215,57 @@ class MainActivity : AppCompatActivity() {
         clipboard.setPrimaryClip(ClipData.newPlainText("url", url))
         Toast.makeText(this, R.string.link_copied, Toast.LENGTH_SHORT).show()
     }
+
+    /**
+     * 长按字数栏 → 弹出当前文档导出的 HTML。
+     *
+     * 存在的意义是**让"属性有没有被保住"这件事可以在手机上直接看见**。
+     * 服务端和 Web 端之间传的是 HTML，所以「编辑一次、保存一次之后 HTML 变没变」
+     * 是最关键的验证点，而它光看渲染结果看不出来 —— 必须看源码。
+     *
+     * 顺带演示 [RichEditorView.getHtml]：它和 [RichEditorView.getContentJson] 一样是
+     * **异步回调**（要跨 WebView 取一次值），不能当同步方法用。
+     */
+    private fun showExportedHtml() {
+        Toast.makeText(this, R.string.export_html_loading, Toast.LENGTH_SHORT).show()
+        // evaluateJavascript 的回调本来就在主线程，这里不额外切线程
+        editor.getHtml { html ->
+            if (html.isEmpty()) {
+                Toast.makeText(this, R.string.export_html_empty, Toast.LENGTH_SHORT).show()
+                return@getHtml
+            }
+            val content = TextView(this).apply {
+                text = html
+                typeface = Typeface.MONOSPACE
+                textSize = 12f
+                setTextIsSelectable(true)
+                setPadding(dp(20), dp(12), dp(20), dp(12))
+            }
+            val scroll = ScrollView(this).apply {
+                addView(content)
+                // 必须自己给高度上限：AlertDialog 的内容区高度不限，
+                // 而 HTML 动辄几千字符，不限制会把对话框撑到超出屏幕、按钮都点不到
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    (resources.displayMetrics.heightPixels * 0.6f).toInt(),
+                )
+            }
+            AlertDialog.Builder(this)
+                .setTitle(R.string.export_html_title)
+                .setView(scroll)
+                .setPositiveButton(R.string.link_action_copy) { _, _ -> copyHtml(html) }
+                .setNegativeButton(R.string.dialog_cancel, null)
+                .show()
+        }
+    }
+
+    private fun copyHtml(html: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("html", html))
+        Toast.makeText(this, R.string.export_html_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     /**
      * 只在白名单 scheme 下才交给系统打开。
@@ -346,18 +406,105 @@ class MainActivity : AppCompatActivity() {
                 "eT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNo" +
                 "b3I9Im1pZGRsZSI+SU1BR0UgT0s8L3RleHQ+PC9zdmc+"
 
+        /*
+         * 演示用的公开测试媒体。
+         *
+         * ## 挑选标准（下面这些链接都是在真机上实测过 readyState=4 才写进来的）
+         *  1. **必须 https**。编辑器页面自身就是
+         *     https://appassets.androidplatform.net/...，WebView 在 https 页面里
+         *     加载 http 资源会按 mixed content 拦掉。
+         *  2. **体积要小**，移动网络下点开就能播。
+         *  3. 优先选支持 `Accept-Ranges: bytes` 的（视频拖动进度条要靠它）。
+         *
+         * ## 两个容易踩的坑
+         *  - **宿主必须声明 INTERNET 权限**，否则现象是"播放器出来了但一直转圈"，
+         *    很容易误判成库的问题。演示工程已在 AndroidManifest.xml 里声明。
+         *  - **logcat 里 `onReceivedError ... mainFrame=false` 常常是假警报**。
+         *    实测正文里 5 个媒体元素全部 readyState=4（真的加载好了），
+         *    其中两个视频仍然报了这个错。判断媒体是否可用要查 DOM 的
+         *    readyState / error，不要看这个回调。详见 RichEditorView.onReceivedError。
+         */
+
+        /** 图片（https 外链），用来验证网络与权限链路 */
+        const val DEMO_IMAGE_EXTERNAL =
+            "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg"
+
+        /** 视频：`<video src>` 写法。w3schools 的 Big Buck Bunny 片段，788 KB，支持 Range */
+        const val DEMO_VIDEO_SRC = "https://www.w3schools.com/html/mov_bbb.mp4"
+
+        /** 视频：`<video><source></video>` 写法。1920×1080，2.8 MB */
+        const val DEMO_VIDEO_SOURCE = "https://samplelib.com/lib/preview/mp4/sample-5s.mp4"
+
+        /** 视频封面。poster 是 `<video>` 的属性，本库会保留（也可用来验证属性透传） */
+        const val DEMO_VIDEO_POSTER = "https://media.w3.org/2010/05/sintel/poster.png"
+
+        /** 音频：`<audio src>` 写法。约 30 KB 的 mp3 */
+        const val DEMO_AUDIO_SRC = "https://www.w3schools.com/html/horse.mp3"
+
+        /** 音频：`<audio><source></audio>` 写法。52 KB 的 mp3 */
+        const val DEMO_AUDIO_SOURCE = "https://samplelib.com/lib/preview/mp3/sample-3s.mp3"
+
         /** 初始示例内容：覆盖几种典型格式，便于验证工具栏状态是否正确跟随光标 */
-        const val INITIAL_CONTENT = """
-            <h2 style="text-align: center">RichEditor</h2>
+        val INITIAL_CONTENT = """
+            <h2 class="zw-title" style="text-align: center">富文本编辑器</h2>
             <p style="text-align: right">这一段是右对齐，光标放进来时「右对齐」按钮应高亮。</p>
-            <p>把光标移进下面的<strong>加粗文字</strong>或<em>斜体文字</em>，
-            观察上方工具栏按钮是否自动高亮——这就是「选中态」而不是「点击态」。</p>
-            <p><strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、<s>删除线</s></p>
-            <p>点这个<a href="https://developer.android.com">超链接</a>试试，
-            应该弹出对话框而不是直接跳走；选中它还能用更多菜单里的「移除链接」。</p>
-            <p><img src="$DEMO_IMAGE" alt="demo image"></p>
+            <p>把光标移进下面的<strong>加粗文字</strong>或<em>斜体文字</em>，观察上方工具栏按钮是否自动高亮——这就是「选中态」而不是「点击态」。</p>
+            <p><strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、<s>删除线</s>、<code>行内代码</code>、x<sup>2</sup>、H<sub>2</sub>O</p>
+
+            <h3>1. PC 端（TinyMCE）产的样式，现在都能保住</h3>
+            <p style="line-height: 2">这一段的 line-height 是 2，来自 TinyMCE 的行高设置。</p>
+            <p><span style="font-size: 18pt">18pt 字号</span>、<span style="color: #d32f2f">红色文字</span>、<span style="background-color: #fff59d">黄色背景</span></p>
+            <p style="padding-left: 40px">这一段有 40px 左缩进（TinyMCE 的「增加缩进」）。</p>
+            <p class="note" id="note-1">这一段带 class="note" 和 id，属于 CMS 模板挂的类名。以前编辑一次就会被抹掉，现在会原样保留。</p>
+
+            <h3>2. 表格</h3>
+            <table border="1" cellpadding="4" style="border-collapse: collapse; width: 100%">
+              <tbody>
+                <tr><td><strong>能力</strong></td><td><strong>状态</strong></td></tr>
+                <tr><td>表格 border / width</td><td>保留</td></tr>
+                <tr><td>class / id / style</td><td>保留</td></tr>
+                <tr><td>分页符</td><td>暂不支持</td></tr>
+              </tbody>
+            </table>
+
+            <h3>3. 代码块</h3>
+            <pre class="language-kotlin"><code>editor.setContent(serverHtml)   // 服务端下发什么就传什么
+editor.insertText("2026-10-10") // 在光标处插一段纯文本，不解析 HTML</code></pre>
+
+            <h3>4. 列表与引用</h3>
             <ul><li>无序列表项</li><li>第二项</li></ul>
+            <ol><li>有序列表第一项</li><li>第二项</li></ol>
             <blockquote><p>引用文本</p></blockquote>
-        """
+            <hr>
+
+            <h3>5. 图片</h3>
+            <p><img src="$DEMO_IMAGE" alt="demo image"></p>
+            <p>上面这张是内嵌的 data URL，从相册选图也是这条路径。下面这张是外链 https 图片 ——
+            要用外链，宿主必须声明 INTERNET 权限（演示工程已声明）。</p>
+            <p><img src="$DEMO_IMAGE_EXTERNAL" alt="external"></p>
+            <p>选中图片后再点「居中」，图片会真的居中（靠 margin:auto，不是 text-align）。</p>
+
+            <h3>6. 视频</h3>
+            <p>第一种写法：<code>&lt;video src="..."&gt;</code></p>
+            <p><video controls src="$DEMO_VIDEO_SRC"></video></p>
+            <p>第二种写法：<code>&lt;video&gt;&lt;source src="..."&gt;&lt;/video&gt;</code>，
+            并带 poster 封面。服务端两种写法都很常见，本库两种都认。</p>
+            <p><video controls poster="$DEMO_VIDEO_POSTER"><source src="$DEMO_VIDEO_SOURCE" type="video/mp4"></video></p>
+            <p>视频不会自动播放（WebView 的 <code>mediaPlaybackRequiresUserGesture</code> 默认为 true，
+            本库也未放开），点播放键即可。全屏按钮**无效** —— 它需要 WebChromeClient.onShowCustomView，
+            本库没有实现。</p>
+
+            <h3>7. 音频</h3>
+            <p><code>&lt;audio src="..."&gt;</code></p>
+            <p><audio controls src="$DEMO_AUDIO_SRC"></audio></p>
+            <p><code>&lt;audio&gt;&lt;source src="..."&gt;&lt;/audio&gt;</code></p>
+            <p><audio controls><source src="$DEMO_AUDIO_SOURCE" type="audio/mpeg"></audio></p>
+            <p>音频播放器由 WebView 自己提供，外观随系统版本变化，不是本库画的。</p>
+
+            <h3>8. 链接</h3>
+            <p>点这个<a href="https://developer.android.com">超链接</a>试试，应该弹出对话框而不是直接跳走。</p>
+
+            <p><em>提示：长按右下角的字数，可以查看当前文档导出的 HTML —— 用它可以验证上面的属性有没有被保住。</em></p>
+        """.trimIndent()
     }
 }
